@@ -166,7 +166,9 @@ main(int argc, char* argv[])
 
     //SPI_Send_Data_Only(SPI2, spi_test, sizeof(spi_test));
    // SysTick_Delay(2000);
-    SPI_Send_And_Receive_Data(SPI2, spi_test, sizeof(spi_test), spi_rx_test_buff, sizeof(spi_rx_test_buff), false);
+   // SPI_Send_And_Receive_Data(SPI2, spi_test, sizeof(spi_test), spi_rx_test_buff, sizeof(spi_rx_test_buff), false);
+    //SPI_Change_Clock(SPI2, SPI_FREQ_PCLK_DIV_64);
+    SPI_Send_Data_Only(SPI2, spi_test, sizeof(spi_test));
   while(1)
   {
      /*GPIOG->ODR  = GPIO_ODR_ODR_14;
