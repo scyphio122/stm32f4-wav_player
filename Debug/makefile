@@ -13,8 +13,8 @@ RM := rm -rf
 -include system/src/diag/subdir.mk
 -include system/src/cortexm/subdir.mk
 -include system/src/cmsis/subdir.mk
+-include stm32f4_mylib/src/subdir.mk
 -include stm32f4_mylib/FatFS/subdir.mk
--include stm32f4_mylib/subdir.mk
 -include src/subdir.mk
 -include subdir.mk
 -include objects.mk

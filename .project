@@ -26,11 +26,6 @@
 	</natures>
 	<linkedResources>
 		<link>
-			<name>FatFS</name>
-			<type>2</type>
-			<location>D:/Eclipse_workspace/stm32f4_mylib/FatFS</location>
-		</link>
-		<link>
 			<name>stm32f4_mylib</name>
 			<type>2</type>
 			<location>D:/Eclipse_workspace/stm32f4_mylib</location>

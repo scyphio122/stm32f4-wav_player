@@ -53,8 +53,8 @@
 									<listOptionValue builtIn="false" value="&quot;../system/include&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;../system/include/cmsis&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;../system/include/stm32f4-hal&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;D:\Eclipse_workspace\stm32f4_template\stm32f4_mylib&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;D:\Eclipse_workspace\stm32f4_template\stm32f4_mylib\FatFS&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;D:\Eclipse_workspace\stm32f4_mylib\inc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;D:\Eclipse_workspace\stm32f4_mylib\FatFS&quot;"/>
 								</option>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.defs.1526720597" name="Defined symbols (-D)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.assembler.defs" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="DEBUG"/>
@@ -73,8 +73,8 @@
 									<listOptionValue builtIn="false" value="&quot;../system/include&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;../system/include/cmsis&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;../system/include/stm32f4-hal&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;D:\Eclipse_workspace\stm32f4_template\stm32f4_mylib&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;D:\Eclipse_workspace\stm32f4_template\stm32f4_mylib\FatFS&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;D:\Eclipse_workspace\stm32f4_mylib\inc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;D:\Eclipse_workspace\stm32f4_mylib\FatFS&quot;"/>
 								</option>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.c.compiler.defs.1244050164" name="Defined symbols (-D)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.c.compiler.defs" useByScannerDiscovery="false" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="DEBUG"/>
@@ -93,8 +93,8 @@
 									<listOptionValue builtIn="false" value="&quot;../system/include&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;../system/include/cmsis&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;../system/include/stm32f4-hal&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;D:\Eclipse_workspace\stm32f4_template\stm32f4_mylib&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;D:\Eclipse_workspace\stm32f4_template\stm32f4_mylib\FatFS&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;D:\Eclipse_workspace\stm32f4_mylib\inc&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;D:\Eclipse_workspace\stm32f4_mylib\FatFS&quot;"/>
 								</option>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.noexceptions.1285447579" name="Do not use exceptions (-fno-exceptions)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.noexceptions" useByScannerDiscovery="true" value="true" valueType="boolean"/>
 								<option id="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nortti.1606821096" name="Do not use RTTI (-fno-rtti)" superClass="ilg.gnuarmeclipse.managedbuild.cross.option.cpp.compiler.nortti" useByScannerDiscovery="true" value="true" valueType="boolean"/>

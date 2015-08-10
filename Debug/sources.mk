@@ -28,8 +28,8 @@ CPP_DEPS :=
 # Every subdirectory with source files must be described here
 SUBDIRS := \
 src \
-stm32f4_mylib \
 stm32f4_mylib/FatFS \
+stm32f4_mylib/src \
 system/src/cmsis \
 system/src/cortexm \
 system/src/diag \

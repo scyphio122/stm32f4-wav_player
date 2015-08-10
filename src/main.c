@@ -20,6 +20,7 @@
 #include "USART.h"
 #include "sd_card_reader.h"
 #include "misc.h"
+#include "GPIO.h"
 // ----------------------------------------------------------------------------
 //
 // Standalone STM32F4 empty sample (trace via DEBUG).
@@ -41,7 +42,7 @@
 #pragma GCC diagnostic ignored "-Wreturn-type"
 
 
-#define SYSTICK_1_MS	(uint16_t)(CPU_FREQ*1000)
+#define SYSTICK_1_US	(uint32_t)(CPU_FREQ)
 
 uint8_t 		remote_command_queue[8];
 fifo_t  		remote_command_fifo;
@@ -55,15 +56,13 @@ static uint8_t 		sd_card_timer_proc_counter = 0;
 
 /**
  *  \brief	This function implements a simple delay function using the system timer - SysTick.
- *  \param delay_ms - the requested delay, given in miliseconds
+ *  \param delay_us - the requested delay, given in microseconds
  */
-void SysTick_Delay(uint16_t delay_ms)
+void SysTick_Delay(uint32_t delay_us)
 {
-	sd_card_timer_proc_counter++;
-
 	systick_delay_completed = false;
 	// Load the delay value in the workink variable
-	systick_delay = delay_ms;
+	systick_delay = delay_us;
 	//	Wait until the requested time passes
 	while(!systick_delay_completed)
 	{
@@ -116,7 +115,8 @@ main(int argc, char* argv[])
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOBEN |  RCC_AHB1ENR_GPIOCEN | RCC_AHB1ENR_GPIODEN;
     RCC->APB2ENR |= RCC_APB2ENR_TIM1EN;
     RCC->APB1ENR |= RCC_APB1ENR_TIM7EN | RCC_APB1ENR_SPI2EN | RCC_APB1ENR_USART2EN;
-
+    /*< Configure board's leds to signal states */
+    GPIO_OutputConfigure(GPIOD, PIN_12 | PIN_13 | PIN_14 | PIN_15, gpio_otyper_push_pull, gpio_speed_low, gpio_pupd_pull_down);
     /*< Configure NVIC Interrupt controller */
     //  Set two bits (out of four) as the main priority. The rest bits are used for preemptive priorities
     NVIC_SetPriorityGrouping(NVIC_PriorityGroup_2);
@@ -137,7 +137,7 @@ main(int argc, char* argv[])
 
     /*<	SysTick configuration */
     Log_Uart("SysTick configuration in progress...\n\r");
-    SysTick_Config(SYSTICK_1_MS);	//	Configure SysTick to make a tick every 1 ms
+    SysTick_Config(SYSTICK_1_US);	//	Configure SysTick to make a tick every 1 us
     SysTick_CLKSourceConfig(SysTick_CLKSource_HCLK);
 
     /*< PWM signal configuration */
@@ -165,7 +165,7 @@ main(int argc, char* argv[])
     Log_Uart("Configuration OK!\n\r");
     //SPI_Chip_Select_Deselect(CARD_READER_PORT, CARD_READER_ODR_CS);
     SPI_Send_Data_Only(SPI2, spi_test, sizeof(spi_test));
-    SysTick_Delay(2);
+    SysTick_Delay(2000);
     SPI_Send_And_Receive_Data(SPI2, spi_test, sizeof(spi_test), spi_rx_test_buff, sizeof(spi_rx_test_buff), false);
   while(1)
   {
