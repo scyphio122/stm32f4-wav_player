@@ -163,9 +163,9 @@ main(int argc, char* argv[])
     TIM6->CR1 |= TIM_CR1_CEN;
 
     Log_Uart("Configuration OK!\n\r");
-    //SPI_Chip_Select_Deselect(CARD_READER_PORT, CARD_READER_ODR_CS);
-    SPI_Send_Data_Only(SPI2, spi_test, sizeof(spi_test));
-    SysTick_Delay(2000);
+
+    //SPI_Send_Data_Only(SPI2, spi_test, sizeof(spi_test));
+   // SysTick_Delay(2000);
     SPI_Send_And_Receive_Data(SPI2, spi_test, sizeof(spi_test), spi_rx_test_buff, sizeof(spi_rx_test_buff), false);
   while(1)
   {
