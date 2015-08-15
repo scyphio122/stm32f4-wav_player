@@ -7,20 +7,22 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "diag/Trace.h"
-//#include "stm32f4xx_conf.h"
-#include "RCC.h"
-#include "TIM.h"
-#include "NEC_remote_controller.h"
-#include "HD44780.h"
 #include "stm32f4xx.h"
-#include "spi.h"
-#include "fifo.h"
 #include "core_cm4.h"
-#include "USART.h"
-#include "sd_card_reader.h"
-#include "misc.h"
+#include "diag/Trace.h"
+#include "fifo.h"
 #include "GPIO.h"
+#include "HD44780.h"
+#include "RCC.h"
+#include "misc.h"
+#include "NEC_remote_controller.h"
+#include "sd_card_reader.h"
+#include "spi.h"
+#include "TIM.h"
+#include "USART.h"
+
+
+
 // ----------------------------------------------------------------------------
 //
 // Standalone STM32F4 empty sample (trace via DEBUG).
@@ -61,7 +63,7 @@ static uint8_t 		sd_card_timer_proc_counter = 0;
 void SysTick_Delay(uint32_t delay_us)
 {
 	systick_delay_completed = false;
-	// Load the delay value in the workink variable
+	// Load the delay value in the working variable
 	systick_delay = delay_us;
 	//	Wait until the requested time passes
 	while(!systick_delay_completed)
@@ -115,6 +117,8 @@ main(int argc, char* argv[])
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOBEN |  RCC_AHB1ENR_GPIOCEN | RCC_AHB1ENR_GPIODEN;
     RCC->APB2ENR |= RCC_APB2ENR_TIM1EN;
     RCC->APB1ENR |= RCC_APB1ENR_TIM7EN | RCC_APB1ENR_SPI2EN | RCC_APB1ENR_USART2EN;
+
+
     /*< Configure board's leds to signal states */
     GPIO_OutputConfigure(GPIOD, PIN_12 | PIN_13 | PIN_14 | PIN_15, gpio_otyper_push_pull, gpio_speed_low, gpio_pupd_pull_down);
     /*< Configure NVIC Interrupt controller */
@@ -165,16 +169,13 @@ main(int argc, char* argv[])
     Log_Uart("Configuration OK!\n\r");
 
     //SPI_Send_Data_Only(SPI2, spi_test, sizeof(spi_test));
-   // SysTick_Delay(2000);
-   // SPI_Send_And_Receive_Data(SPI2, spi_test, sizeof(spi_test), spi_rx_test_buff, sizeof(spi_rx_test_buff), false);
-    //SPI_Change_Clock(SPI2, SPI_FREQ_PCLK_DIV_64);
-    SPI_Send_Data_Only(SPI2, spi_test, sizeof(spi_test));
+
+    SD_Card_Init();
+
+
   while(1)
   {
-     /*GPIOG->ODR  = GPIO_ODR_ODR_14;
-     TIM_Delay(TIM7, TIM7_US_TO_TICKS(1000000));
-     GPIOG->ODR  = 0;
-     TIM_Delay(TIM7, TIM7_US_TO_TICKS(1000000));*/
+
   }
 }
 
