@@ -172,7 +172,11 @@ main(int argc, char* argv[])
 
     SD_Card_Init();
 
+  volatile uint16_t block_size = SD_Get_Block_Size();
+  uint8_t	data_block[514];
+  SD_Read_Single_Block(0, data_block);
 
+   SysTick_Delay(1000000);
   while(1)
   {
 
