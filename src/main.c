@@ -177,12 +177,23 @@ main(int argc, char* argv[])
     volatile FATFS fatfs = {0};
     FIL file = {0};
     volatile FRESULT result;
-    TCHAR disk[] = "0";
-    result = f_mount(&fatfs, disk, 1);
-    result =  f_open(&file, "stm32.txt", FA_READ);
-    UINT byte_number;
 
+    TCHAR disk[] = "0";
+    UINT byte_number;
+    result = f_mount(&fatfs, disk, 1);
+
+    result =  f_open(&file, "stm32.txt", FA_READ);
     result = f_read(&file, data, 512, &byte_number);
+    result = f_close(&file);
+
+    result =  f_open(&file, "test.txt", FA_READ);
+    result = f_read(&file, data, 512, &byte_number);
+    result = f_close(&file);
+
+    result =  f_open(&file, "fatfs.txt", FA_READ);
+    result = f_read(&file, data, 512, &byte_number);
+    result = f_close(&file);
+
    SysTick_Delay(1000000);
   while(1)
   {
