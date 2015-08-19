@@ -20,7 +20,7 @@
 #include "spi.h"
 #include "TIM.h"
 #include "USART.h"
-
+#include "ff.h"
 
 
 // ----------------------------------------------------------------------------
@@ -100,6 +100,7 @@ void NVIC_Enable_Interrupts()
     NVIC_EnableIRQ(USART2_IRQn);
 
 }
+BYTE data[512];
 
 int
 main(int argc, char* argv[])
@@ -170,12 +171,17 @@ main(int argc, char* argv[])
 
     //SPI_Send_Data_Only(SPI2, spi_test, sizeof(spi_test));
 
-    SD_Card_Init();
+   // SD_Card_Init();
+    //uint16_t size = SD_Get_Block_Size();
+   // SD_Read_Single_Block(1, buffer);
+    volatile FATFS file;
+    volatile FRESULT result;
+    TCHAR disk[] = "0";
+    result = f_mount(&file, disk, 1);
+    result =  f_open(&file, "stm32.txt", FA_READ);
+    UINT byte_number;
 
-  volatile uint16_t block_size = SD_Get_Block_Size();
-  uint8_t	data_block[514];
-  SD_Read_Single_Block(0, data_block);
-
+    result = f_read(&file, data, 512, &byte_number);
    SysTick_Delay(1000000);
   while(1)
   {
