@@ -174,10 +174,11 @@ main(int argc, char* argv[])
    // SD_Card_Init();
     //uint16_t size = SD_Get_Block_Size();
    // SD_Read_Single_Block(1, buffer);
-    volatile FATFS file;
+    volatile FATFS fatfs = {0};
+    FIL file = {0};
     volatile FRESULT result;
     TCHAR disk[] = "0";
-    result = f_mount(&file, disk, 1);
+    result = f_mount(&fatfs, disk, 1);
     result =  f_open(&file, "stm32.txt", FA_READ);
     UINT byte_number;
 
