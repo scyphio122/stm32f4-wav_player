@@ -22,6 +22,7 @@
 #include "USART.h"
 #include "SysTick.h"
 #include "ff.h"
+#include "wav.h"
 
 
 // ----------------------------------------------------------------------------
@@ -74,6 +75,9 @@ void NVIC_Enable_Interrupts()
 int
 main(int argc, char* argv[])
 {
+	volatile FATFS fatfs = {0};
+	volatile FRESULT result;
+
     ResetRCC();
     RCC_SetClockFrequency(PLLM_macro, PLLN_macro, PLLQ_macro, PLLP_macro);
 
@@ -141,8 +145,8 @@ main(int argc, char* argv[])
 
     Log_Uart("Configuration OK!\n\r");
 
-    volatile FATFS fatfs = {0};
-    volatile FRESULT result;
+
+
 
     TCHAR disk[] = "0";
     UINT byte_number;
@@ -150,8 +154,9 @@ main(int argc, char* argv[])
 
     uint16_t bytes;
     result = SD_Get_File_List("/");
-    result = f_open(&sd_current_file, sd_files_list[0], FA_READ);
-    result = f_read(&sd_current_file, data, 13, &bytes);
+    result = f_open(&sd_current_file, &sd_files_list[3], FA_READ);
+    result = Wav_Get_File_Header(&sd_current_file);
+
 
    SysTick_Delay(1000000);
   while(1)

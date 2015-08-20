@@ -6,17 +6,20 @@
 C_SRCS += \
 ../src/_initialize_hardware.c \
 ../src/_write.c \
-../src/main.c 
+../src/main.c \
+../src/wav.c 
 
 OBJS += \
 ./src/_initialize_hardware.o \
 ./src/_write.o \
-./src/main.o 
+./src/main.o \
+./src/wav.o 
 
 C_DEPS += \
 ./src/_initialize_hardware.d \
 ./src/_write.d \
-./src/main.d 
+./src/main.d \
+./src/wav.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes

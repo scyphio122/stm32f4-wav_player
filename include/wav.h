@@ -1,11 +1,11 @@
 #ifndef __WAV_H
 #define __WAV_H
 
+#include "ff.h"
+#include "stdint-gcc.h"
 
-typedef union
+typedef struct
 {
-	uint8_t 	array[44];
-
 	uint32_t 	chunk_ID;			// "RIFF" in ASCII					(BIG_ENDIAN	 0x52494646)
 	uint32_t 	chunk_size;			//	size, should be 44 or more
 	uint32_t 	format;				// "WAVE" in ASCII in big endian	(BIG_ENDIAN	 0x57415645)
@@ -19,9 +19,20 @@ typedef union
 	uint16_t	bits_per_sample;	//	8, 16 etc
 	uint32_t	subchunk_2_id;		//	"data" in ASCII 				(BIG_ENDIAN  0x64617461)
 	uint32_t	subchunk_2_size;
+
+}wav_file_header_t;
+typedef union
+{
+	uint8_t 			array[44];
+	wav_file_header_t	byte_field;
+
 }wav_file_header_u;
 
+/**
+ * NOTE: Wave file samples are signed values!!!
+ */
 
+FRESULT Wav_Get_File_Header(FIL* file);
 
 
 
