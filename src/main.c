@@ -20,6 +20,7 @@
 #include "spi.h"
 #include "TIM.h"
 #include "USART.h"
+#include "SysTick.h"
 #include "ff.h"
 
 
@@ -44,48 +45,16 @@
 #pragma GCC diagnostic ignored "-Wreturn-type"
 
 
-#define SYSTICK_1_US	(uint32_t)(CPU_FREQ)
+
 
 uint8_t 		remote_command_queue[8];
 fifo_t  		remote_command_fifo;
-uint8_t 		spi_test[21] = "Hello World, my STM!";
-uint8_t 		byte_counter = 0;
-uint8_t 		spi_rx_test_buff[10];
-uint16_t 		systick_delay;
-volatile bool		systick_delay_completed;
-static uint8_t 		sd_card_timer_proc_counter = 0;
 
 
-/**
- *  \brief	This function implements a simple delay function using the system timer - SysTick.
- *  \param delay_us - the requested delay, given in microseconds
- */
-void SysTick_Delay(uint32_t delay_us)
-{
-	systick_delay_completed = false;
-	// Load the delay value in the working variable
-	systick_delay = delay_us;
-	//	Wait until the requested time passes
-	while(!systick_delay_completed)
-	{
-		__WFE();	//	Go sleep
-	}
-}
 
-/**
- * \brief SysTick interrupt handler. It's only job is to decrease the systick_delay variable
- */
-void SysTick_Handler()
-{
-	/*if(sd_card_timer_proc_counter == 10)
-	{
-		disk_timerproc();
-		sd_card_timer_proc_counter = 0;
-	}*/
-	systick_delay--;
-	if(systick_delay == 0)	//	Set the flag indicating that delay time passed. It is more safe than just decreasing systick_delay if by some way the while loop in SysTick_Delay function skips 2 ticks because of IRQ overload
-		systick_delay_completed = true;
-}
+BYTE data[512];
+
+
 
 void NVIC_Enable_Interrupts()
 {
@@ -100,7 +69,7 @@ void NVIC_Enable_Interrupts()
     NVIC_EnableIRQ(USART2_IRQn);
 
 }
-BYTE data[512];
+
 
 int
 main(int argc, char* argv[])
@@ -112,7 +81,7 @@ main(int argc, char* argv[])
     /*
      * 	GPIOA	-	NEC_CONTROLLER, TIM1 PWM
      * 	GPIOB	- 	SPI2
-     * 	GPIOC	-
+     * 	GPIOC	-	HD44780 Led Display
      * 	GPIOD	-	LED diodes, USART2(Log)
      */
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOBEN |  RCC_AHB1ENR_GPIOCEN | RCC_AHB1ENR_GPIODEN;
@@ -142,7 +111,7 @@ main(int argc, char* argv[])
 
     /*<	SysTick configuration */
     Log_Uart("SysTick configuration in progress...\n\r");
-    SysTick_Config(SYSTICK_1_US);	//	Configure SysTick to make a tick every 1 us
+    SysTick_Config(SYSTICK_CLK_DIVIDER);	//	Configure SysTick to make a tick every 1 us
     SysTick_CLKSourceConfig(SysTick_CLKSource_HCLK);
 
     /*< PWM signal configuration */
@@ -150,6 +119,9 @@ main(int argc, char* argv[])
     GPIO_AlternateFunctionPrepare(GPIOA, PIN_8, gpio_otyper_push_pull, gpio_speed_fast, gpio_pupd_pull_down);
     GPIO_AlternateFunctionSet(GPIOA, PIN_8, AF1);	//	Pin for PWM signal
     TIM_PWMConfigure(TIM1, 0, 2, 1, TIM_Channel_1);
+
+    /*< HD44780 display configuration */
+    LCD_Config();
 
     /*< Remote controller receiver initialization */
     Log_Uart("IR remote controller configuration in progress...\n\r");
@@ -164,35 +136,22 @@ main(int argc, char* argv[])
     Fifo_Init(&remote_command_fifo, remote_command_queue, sizeof(remote_command_queue));
 
     /*< Start the timers */
-    TIM1->CR1 |= TIM_CR1_CEN;
-    TIM6->CR1 |= TIM_CR1_CEN;
+    TIM1->CR1 |= TIM_CR1_CEN;	/*< PWM generation timer */
+    TIM6->CR1 |= TIM_CR1_CEN;	/*< Continuously ticking timer, used in NEC IR remote */
 
     Log_Uart("Configuration OK!\n\r");
 
-    //SPI_Send_Data_Only(SPI2, spi_test, sizeof(spi_test));
-
-   // SD_Card_Init();
-    //uint16_t size = SD_Get_Block_Size();
-   // SD_Read_Single_Block(1, buffer);
     volatile FATFS fatfs = {0};
-    FIL file = {0};
     volatile FRESULT result;
 
     TCHAR disk[] = "0";
     UINT byte_number;
     result = f_mount(&fatfs, disk, 1);
 
-    result =  f_open(&file, "stm32.txt", FA_READ);
-    result = f_read(&file, data, 512, &byte_number);
-    result = f_close(&file);
-
-    result =  f_open(&file, "test.txt", FA_READ);
-    result = f_read(&file, data, 512, &byte_number);
-    result = f_close(&file);
-
-    result =  f_open(&file, "fatfs.txt", FA_READ);
-    result = f_read(&file, data, 512, &byte_number);
-    result = f_close(&file);
+    uint16_t bytes;
+    result = SD_Get_File_List("/");
+    result = f_open(&sd_current_file, sd_files_list[0], FA_READ);
+    result = f_read(&sd_current_file, data, 13, &bytes);
 
    SysTick_Delay(1000000);
   while(1)
