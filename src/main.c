@@ -47,9 +47,9 @@
 
 
 
-
-uint8_t 		remote_command_queue[8];
-fifo_t  		remote_command_fifo;
+volatile state_t 	state;
+uint8_t 			remote_command_queue[8];
+fifo_t  			remote_command_fifo;
 
 
 
@@ -68,15 +68,21 @@ void NVIC_Enable_Interrupts()
     // USART2
     NVIC_SetPriority(USART2_IRQn,1);
     NVIC_EnableIRQ(USART2_IRQn);
-
+    //	REMOTE
+    NVIC_SetPriority(EXTI15_10_IRQn, NEC_PRIOR);
+    NVIC_EnableIRQ(EXTI15_10_IRQn);
 }
 
 
 int
 main(int argc, char* argv[])
 {
-	volatile FATFS fatfs = {0};
-	volatile FRESULT result;
+	volatile FATFS 		fatfs = {0};
+	volatile FRESULT 	result;
+	uint8_t 			fifo_command;
+	uint8_t				file_index = 0;
+	uint16_t			read_data_byte_counter = 0;
+	char				file_name_with_numeration[32] = {0};
 
     ResetRCC();
     RCC_SetClockFrequency(PLLM_macro, PLLN_macro, PLLQ_macro, PLLP_macro);
@@ -122,7 +128,7 @@ main(int argc, char* argv[])
     Log_Uart("PWM generation module configuration in progress...\n\r");
     GPIO_AlternateFunctionPrepare(GPIOA, PIN_8, gpio_otyper_push_pull, gpio_speed_fast, gpio_pupd_pull_down);
     GPIO_AlternateFunctionSet(GPIOA, PIN_8, AF1);	//	Pin for PWM signal
-    TIM_PWMConfigure(TIM1, 0, 2, 1, TIM_Channel_1);
+    TIM_PWMConfigure(TIM1, 168, 5000, 4000, TIM_Channel_1);
 
     /*< HD44780 display configuration */
     LCD_Config();
@@ -153,15 +159,105 @@ main(int argc, char* argv[])
     result = f_mount(&fatfs, disk, 1);
 
     uint16_t bytes;
+   /* result = SD_Find_File_Name_Containing("/", "*.wav");
     result = SD_Get_File_List("/");
     result = f_open(&sd_current_file, &sd_files_list[3], FA_READ);
     result = Wav_Get_File_Header(&sd_current_file);
+*/
+    //	Initially, get the files list
+    state = STATE_GET_FILES_LIST;
 
-
-   SysTick_Delay(1000000);
   while(1)
   {
+	  switch(state)
+	  {
+		  case STATE_WAIT:
+			  break;
 
+		  case	STATE_GET_FILES_LIST:
+		  {
+			  result = SD_Find_File_Name_Containing("/", "*.wav");
+			  if(result == FR_NO_FILE)
+			  {
+				  LCD_WriteText("Brak plikow .wav");
+				  // Go to sleep in this case
+				  while(1)
+				  {
+					  __WFI();
+				  }
+			  }
+			  else
+			  {
+				  LCD_WriteText(sd_files_list[0]);
+			  }
+			  state = STATE_EXECUTE_USER_REQUESTS;
+			  break;
+		  }
+
+		  case STATE_READ_SAMPLES:
+		  {
+			  break;
+		  }
+
+		  case STATE_EXECUTE_USER_REQUESTS:
+		  {
+			  do
+			  {
+				  Fifo_Get(&remote_command_fifo, &fifo_command);
+
+				  switch(fifo_command)
+				  {
+					  case NEC_CH_PLUS:
+					  {
+						  //	Disable when the wav_file is currently played
+						  if(!wav_file_playing)
+						  {
+							  if(file_index < sd_number_of_files_in_dir-1)
+								  file_index++;
+
+							  LCD_WriteText(sd_files_list[file_index]);
+						  }
+						  break;
+					  }
+					  case NEC_CH_MINUS:
+					  {
+						  //	Disable when the wav_file is currently played
+						  if(!wav_file_playing)
+						  {
+							  if(file_index > 0)
+								  file_index--;
+							  LCD_WriteText(sd_files_list[file_index]);
+						  }
+						  break;
+					  }
+					  case NEC_CH:
+					  {
+						  //	Disable when the wav_file is currently played
+						  if(!wav_file_playing)
+						  {
+							  //	Open the chosen file
+							  f_open(&sd_current_file, sd_files_list[file_index], FA_READ);
+							  //	Get the chosen files header
+							  Wav_Get_File_Header(&sd_current_file);
+							  //	Get the first portion of data
+							  f_read(&sd_current_file, data, sizeof(data), &read_data_byte_counter);
+						  }
+						  break;
+					  }
+					  case NEC_PLAY_PAUSE:
+					  {
+
+					  }
+					  default:
+						  break;
+
+				  }
+				  fifo_command = 0;
+			  }while(!Fifo_Empty(&remote_command_fifo));
+			  state = STATE_WAIT;
+			  break;
+		  }
+	  }
   }
 }
 

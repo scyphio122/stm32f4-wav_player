@@ -3,6 +3,7 @@
 
 #include "ff.h"
 #include "stdint-gcc.h"
+#include <stdbool.h>
 
 typedef struct
 {
@@ -28,12 +29,13 @@ typedef union
 
 }wav_file_header_u;
 
+
+extern bool				wav_file_playing;
 /**
  * NOTE: Wave file samples are signed values!!!
  */
 
 FRESULT Wav_Get_File_Header(FIL* file);
-
 
 
 
