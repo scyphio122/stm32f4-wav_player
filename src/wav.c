@@ -8,7 +8,7 @@
 #include "ff.h"
 #include <stdbool.h>
 
-wav_file_header_u	current_wav;
+wav_file_header_u	current_wave_header;
 bool				wav_file_playing;
 /**
  * \brief This function loads the header of the .wav file. The file has to be opened
@@ -37,7 +37,7 @@ FRESULT Wav_Get_File_Header(FIL* file)
 
 
 	//	Read the .wav file header
-	ret_val = f_read(file, current_wav.array, sizeof(current_wav.array), &actually_read_data_size);
+	ret_val = f_read(file, current_wave_header.array, sizeof(current_wave_header.array), &actually_read_data_size);
 	if(ret_val != FR_OK)
 	{
 		Log_Uart("Blad odczytu pliku\n\r");
