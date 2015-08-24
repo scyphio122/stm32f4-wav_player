@@ -31,11 +31,12 @@ typedef union
 
 
 extern bool				wav_file_playing;
+extern bool				wav_file_chosen;
 /**
  * NOTE: Wave file samples are signed values!!!
  */
 
-FRESULT Wav_Get_File_Header(FIL* file);
+FRESULT WAV_Get_File_Header(FIL* file);
 
 
 

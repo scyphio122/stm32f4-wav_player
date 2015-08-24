@@ -23,7 +23,7 @@
 #include "SysTick.h"
 #include "ff.h"
 #include "wav.h"
-
+#include "dac.h"
 
 // ----------------------------------------------------------------------------
 //
@@ -89,14 +89,14 @@ main(int argc, char* argv[])
 
     //  Enable clocks for the peripherals
     /*
-     * 	GPIOA	-	NEC_CONTROLLER, TIM1 PWM
+     * 	GPIOA	-	NEC_CONTROLLER, TIM1 PWM, DAC
      * 	GPIOB	- 	SPI2
      * 	GPIOC	-	HD44780 Led Display
      * 	GPIOD	-	LED diodes, USART2(Log)
      */
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOBEN |  RCC_AHB1ENR_GPIOCEN | RCC_AHB1ENR_GPIODEN;
     RCC->APB2ENR |= RCC_APB2ENR_TIM1EN;
-    RCC->APB1ENR |= RCC_APB1ENR_TIM7EN | RCC_APB1ENR_SPI2EN | RCC_APB1ENR_USART2EN;
+    RCC->APB1ENR |= RCC_APB1ENR_TIM7EN | RCC_APB1ENR_SPI2EN | RCC_APB1ENR_USART2EN | RCC_APB1ENR_DACEN;
 
 
     /*< Configure board's leds to signal states */
@@ -136,10 +136,17 @@ main(int argc, char* argv[])
     /*< Remote controller receiver initialization */
     Log_Uart("IR remote controller configuration in progress...\n\r");
     NEC_Remote_Init();
+    TIM_Start(TIM6);
 
     /*< SPI Module configuration. It is used to communicate with the SD card */
     Log_Uart("SPI module configuration in progress...\n\r");
     SPI_Master_Init(SPI2, SPI_FREQ_PCLK_DIV_256, SPI_CPOL0_CPHA0, SPI_BIT_ORDER_MSB_FIRST, true);
+
+    /*< DAC configuration */
+    DAC_Init(dac_bitsize_12_left_aligned, dac_trigger_tim7, false);
+
+    /*< Timer 7 used to trigger the DAC config */
+    TIM_Basic_Continuous_Counting(TIM7);
 
     /*< Remote Controller command fifo configuration */
     Log_Uart("FIFO configuration in progress...\n\r");
@@ -212,6 +219,7 @@ main(int argc, char* argv[])
 						  //	Disable when the wav_file is currently played
 						  if(!wav_file_playing)
 						  {
+							  wav_file_chosen = false;
 							  if(file_index < sd_number_of_files_in_dir-1)
 								  file_index++;
 
@@ -224,6 +232,7 @@ main(int argc, char* argv[])
 						  //	Disable when the wav_file is currently played
 						  if(!wav_file_playing)
 						  {
+							  wav_file_chosen = false;
 							  if(file_index > 0)
 								  file_index--;
 							  LCD_WriteText(sd_files_list[file_index]);
@@ -233,24 +242,47 @@ main(int argc, char* argv[])
 					  case NEC_CH:
 					  {
 						  //	Disable when the wav_file is currently played
-						  if(!wav_file_playing)
+						  if(!wav_file_chosen)
 						  {
-							  //	Open the chosen file
+
+							  //	If the file is already opened then close it
+							  if(sd_current_file.fs != 0)
+								  f_close(&sd_current_file);
+							  //	...Open the chosen file
 							  f_open(&sd_current_file, sd_files_list[file_index], FA_READ);
 							  //	Get the chosen files header
-							  Wav_Get_File_Header(&sd_current_file);
+							  WAV_Get_File_Header(&sd_current_file);
+							  //	Prepare the triggering timer frequency
+							  WAV_Set_Trigger_Frequency(TIM7);
 							  //	Get the first portion of data
 							  f_read(&sd_current_file, data, sizeof(data), &read_data_byte_counter);
+							  //	Set the wav_file_chosen flag
+							  wav_file_chosen = true;
+
 						  }
 						  break;
 					  }
 					  case NEC_PLAY_PAUSE:
 					  {
-
+						 if(!wav_file_playing && wav_file_chosen)
+						 {
+							//	Start the DAC triggering timer
+							TIM_Start(TIM7);
+							//	Set the wav_file_playing_flag
+							wav_file_playing = true;
+						 }
+						 else
+						 {
+							 //	Stop the DAC triggering timer
+							 TIM_Stop(TIM7);
+							 //	Clear the wav_file_playing_ flag
+							 wav_file_playing = false;
+						 }
+						 break;
 					  }
+
 					  default:
 						  break;
-
 				  }
 				  fifo_command = 0;
 			  }while(!Fifo_Empty(&remote_command_fifo));
