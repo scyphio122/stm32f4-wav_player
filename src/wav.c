@@ -12,6 +12,7 @@
 wav_file_header_u	current_wave_header;
 bool				wav_file_playing;
 bool				wav_file_chosen;
+bool				wav_eof;
 /**
  * \brief This function loads the header of the .wav file. The file has to be opened
  *
@@ -46,18 +47,18 @@ FRESULT WAV_Get_File_Header(FIL* file)
 		while(1);
 	}
 }
-
+/*
 FRESULT WAV_Set_Trigger_Frequency(TIM_TypeDef* TIM)
 {
 	uint32_t new_prescaler = 0;
 
-	if((TIM == TIM2) || (TIM == TIM3) || ( TIM == TIM4) || (TIM = TIM5) || (TIM == TIM12) || (TIM == TIM13) || (TIM == TIM14))
-		new_prescaler = (APB1*1000000*2)/current_wave_header.byte_field.sample_rate;
+	if((TIM == TIM2) || (TIM == TIM3) || ( TIM == TIM4) || (TIM == TIM5) || (TIM == TIM12) || (TIM == TIM13) || (TIM == TIM14) || (TIM == TIM6)|| (TIM == TIM7))
+		new_prescaler = ((APB1*1000000*2)/current_wave_header.byte_field.sample_rate);
 	else
-		new_prescaler = (APB2*1000000*2)/current_wave_header.byte_field.sample_rate;
+		new_prescaler = ((APB2*1000000*2)/current_wave_header.byte_field.sample_rate);
 
-	TIM_Change_Frequency(TIM, new_prescaler, false);
+	TIM_Change_Frequency(TIM, new_prescaler + 1, false);
 }
-
+*/
 
 

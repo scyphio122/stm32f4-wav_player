@@ -53,10 +53,6 @@ fifo_t  			remote_command_fifo;
 
 
 
-BYTE data[512];
-
-
-
 void NVIC_Enable_Interrupts()
 {
 	//	Tim7
@@ -79,10 +75,10 @@ main(int argc, char* argv[])
 {
 	volatile FATFS 		fatfs = {0};
 	volatile FRESULT 	result;
-	uint8_t 			fifo_command;
+	uint8_t 			fifo_command = 0;
 	uint8_t				file_index = 0;
-	uint16_t			read_data_byte_counter = 0;
-	char				file_name_with_numeration[32] = {0};
+
+
 
     ResetRCC();
     RCC_SetClockFrequency(PLLM_macro, PLLN_macro, PLLQ_macro, PLLP_macro);
@@ -124,14 +120,16 @@ main(int argc, char* argv[])
     SysTick_Config(SYSTICK_CLK_DIVIDER);	//	Configure SysTick to make a tick every 1 us
     SysTick_CLKSourceConfig(SysTick_CLKSource_HCLK);
 
+
     /*< PWM signal configuration */
     Log_Uart("PWM generation module configuration in progress...\n\r");
     GPIO_AlternateFunctionPrepare(GPIOA, PIN_8, gpio_otyper_push_pull, gpio_speed_fast, gpio_pupd_pull_down);
     GPIO_AlternateFunctionSet(GPIOA, PIN_8, AF1);	//	Pin for PWM signal
     TIM_PWMConfigure(TIM1, 168, 5000, 4000, TIM_Channel_1);
-
+    TIM_Start(TIM1);
     /*< HD44780 display configuration */
     LCD_Config();
+
 
     /*< Remote controller receiver initialization */
     Log_Uart("IR remote controller configuration in progress...\n\r");
@@ -143,17 +141,16 @@ main(int argc, char* argv[])
     SPI_Master_Init(SPI2, SPI_FREQ_PCLK_DIV_256, SPI_CPOL0_CPHA0, SPI_BIT_ORDER_MSB_FIRST, true);
 
     /*< DAC configuration */
-    DAC_Init(dac_bitsize_12_left_aligned, dac_trigger_tim7, false);
+    DAC_Init(dac_dual_channel_simultanous, dac_trigger_tim7, false);
 
     /*< Timer 7 used to trigger the DAC config */
-    TIM_Basic_Continuous_Counting(TIM7);
+    TIM_Basic_Continuous_Counting(TIM7, 12);
 
     /*< Remote Controller command fifo configuration */
     Log_Uart("FIFO configuration in progress...\n\r");
     Fifo_Init(&remote_command_fifo, remote_command_queue, sizeof(remote_command_queue));
 
-    /*< Start the timers */
-    TIM1->CR1 |= TIM_CR1_CEN;	/*< PWM generation timer */
+
     TIM6->CR1 |= TIM_CR1_CEN;	/*< Continuously ticking timer, used in NEC IR remote */
 
     Log_Uart("Configuration OK!\n\r");
@@ -203,6 +200,13 @@ main(int argc, char* argv[])
 
 		  case STATE_READ_SAMPLES:
 		  {
+			  //	If we didn't get to the end of file yet...
+			  if(!f_eof(&sd_current_file))
+				  //	... Then read next sample chunk
+				  f_read(&sd_current_file, empty_data_buf_ptr, 512, &read_data_byte_counter);
+			  else
+				  // 	...	Else set the end of file flag
+				  wav_eof = true;
 			  break;
 		  }
 
@@ -253,11 +257,18 @@ main(int argc, char* argv[])
 							  //	Get the chosen files header
 							  WAV_Get_File_Header(&sd_current_file);
 							  //	Prepare the triggering timer frequency
-							  WAV_Set_Trigger_Frequency(TIM7);
+							 // WAV_Set_Trigger_Frequency(TIM7);
+							  TIM_Set_Timer_Max_Count(TIM7, (uint16_t)(TIM7_FREQ/current_wave_header.byte_field.sample_rate));
+							  //	Get the rest audio file info
+							  f_read(&sd_current_file, sd_data_buffer, current_wave_header.byte_field.subchunk_2_size, &read_data_byte_counter);
 							  //	Get the first portion of data
-							  f_read(&sd_current_file, data, sizeof(data), &read_data_byte_counter);
+							  f_read(&sd_current_file, sd_data_buffer, sizeof(sd_data_buffer), &read_data_byte_counter);
+
+							  f_read(&sd_current_file, sd_data_buffer_additional, sizeof(sd_data_buffer_additional), &read_data_byte_counter);
 							  //	Set the wav_file_chosen flag
 							  wav_file_chosen = true;
+							  //	Clear the wav_eof flag
+							  wav_eof  = false;
 
 						  }
 						  break;
@@ -266,6 +277,9 @@ main(int argc, char* argv[])
 					  {
 						 if(!wav_file_playing && wav_file_chosen)
 						 {
+							//	Clear the timer's counter
+							TIM_Clear(TIM7);
+							TIM7->DIER |= TIM_DIER_UIE;
 							//	Start the DAC triggering timer
 							TIM_Start(TIM7);
 							//	Set the wav_file_playing_flag
@@ -275,6 +289,7 @@ main(int argc, char* argv[])
 						 {
 							 //	Stop the DAC triggering timer
 							 TIM_Stop(TIM7);
+
 							 //	Clear the wav_file_playing_ flag
 							 wav_file_playing = false;
 						 }

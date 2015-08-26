@@ -5,6 +5,8 @@
 #include "stdint-gcc.h"
 #include <stdbool.h>
 
+#define		WAV_FILE_DATA_OFFSET				(uint8_t)44
+
 typedef struct
 {
 	uint32_t 	chunk_ID;			// "RIFF" in ASCII					(BIG_ENDIAN	 0x52494646)
@@ -24,14 +26,17 @@ typedef struct
 }wav_file_header_t;
 typedef union
 {
-	uint8_t 			array[44];
+	uint8_t 			array[WAV_FILE_DATA_OFFSET];
 	wav_file_header_t	byte_field;
 
 }wav_file_header_u;
 
-
+extern wav_file_header_u	current_wave_header;
 extern bool				wav_file_playing;
 extern bool				wav_file_chosen;
+extern bool				wav_eof;
+
+
 /**
  * NOTE: Wave file samples are signed values!!!
  */
