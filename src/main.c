@@ -48,6 +48,7 @@
 
 
 volatile state_t 	state;
+volatile state_t	prev_state;
 uint8_t 			remote_command_queue[8];
 fifo_t  			remote_command_fifo;
 
@@ -175,8 +176,8 @@ main(int argc, char* argv[])
   {
 	  switch(state)
 	  {
-		  case STATE_WAIT:
-			  break;
+		 /* case STATE_WAIT:
+			  break;*/
 
 		  case	STATE_GET_FILES_LIST:
 		  {
@@ -207,7 +208,7 @@ main(int argc, char* argv[])
 			  else
 				  // 	...	Else set the end of file flag
 				  wav_eof = true;
-			  state = STATE_WAIT;
+			  state = STATE_EXECUTE_USER_REQUESTS;
 			  break;
 		  }
 
@@ -304,7 +305,6 @@ main(int argc, char* argv[])
 				  }
 				  fifo_command = 0;
 			  }while(!Fifo_Empty(&remote_command_fifo));
-			  state = STATE_WAIT;
 			  break;
 		  }
 	  }
