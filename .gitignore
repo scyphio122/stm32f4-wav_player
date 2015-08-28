@@ -5,3 +5,4 @@
 *.hex
 *.elf
 *.lib
+/Debug/

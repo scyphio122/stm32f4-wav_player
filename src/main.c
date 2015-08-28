@@ -96,7 +96,7 @@ main(int argc, char* argv[])
 
 
     /*< Configure board's leds to signal states */
-    GPIO_OutputConfigure(GPIOD, PIN_12 | PIN_13 | PIN_14 | PIN_15, gpio_otyper_push_pull, gpio_speed_low, gpio_pupd_pull_down);
+    GPIO_OutputConfigure(GPIOD, PIN_12 | PIN_13 | PIN_14 | PIN_15, gpio_otyper_push_pull, gpio_speed_high, gpio_pupd_pull_down);
     /*< Configure NVIC Interrupt controller */
     //  Set two bits (out of four) as the main priority. The rest bits are used for preemptive priorities
     NVIC_SetPriorityGrouping(NVIC_PriorityGroup_2);
@@ -141,7 +141,7 @@ main(int argc, char* argv[])
     SPI_Master_Init(SPI2, SPI_FREQ_PCLK_DIV_256, SPI_CPOL0_CPHA0, SPI_BIT_ORDER_MSB_FIRST, true);
 
     /*< DAC configuration */
-    DAC_Init(dac_dual_channel_simultanous, dac_trigger_tim7, false);
+    DAC_Init(dac_dual_channel_simultanous, dac_trigger_tim7, true);
 
     /*< Timer 7 used to trigger the DAC config */
     TIM_Basic_Continuous_Counting(TIM7, 12);
@@ -260,11 +260,9 @@ main(int argc, char* argv[])
 							 // WAV_Set_Trigger_Frequency(TIM7);
 							  TIM_Set_Timer_Max_Count(TIM7, (uint16_t)(TIM7_FREQ/current_wave_header.byte_field.sample_rate));
 							  //	Get the rest audio file info
-							  f_read(&sd_current_file, sd_data_buffer, current_wave_header.byte_field.subchunk_2_size, &read_data_byte_counter);
+							  //f_read(&sd_current_file, sd_data_buffer, current_wave_header.byte_field.subchunk_2_size, &read_data_byte_counter);
 							  //	Get the first portion of data
-							  f_read(&sd_current_file, sd_data_buffer, sizeof(sd_data_buffer), &read_data_byte_counter);
 
-							  f_read(&sd_current_file, sd_data_buffer_additional, sizeof(sd_data_buffer_additional), &read_data_byte_counter);
 							  //	Set the wav_file_chosen flag
 							  wav_file_chosen = true;
 							  //	Clear the wav_eof flag
@@ -280,6 +278,10 @@ main(int argc, char* argv[])
 							//	Clear the timer's counter
 							TIM_Clear(TIM7);
 							TIM7->DIER |= TIM_DIER_UIE;
+							empty_data_buf_ptr = sd_data_buffer;
+							  f_read(&sd_current_file, sd_data_buffer, sizeof(sd_data_buffer), &read_data_byte_counter);
+
+							  f_read(&sd_current_file, sd_data_buffer_additional, sizeof(sd_data_buffer_additional), &read_data_byte_counter);
 							//	Start the DAC triggering timer
 							TIM_Start(TIM7);
 							//	Set the wav_file_playing_flag
