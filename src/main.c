@@ -56,13 +56,13 @@ fifo_t  			remote_command_fifo;
 void NVIC_Enable_Interrupts()
 {
 	//	Tim7
-    NVIC_SetPriority(TIM7_IRQn, 0);
+    NVIC_SetPriority(TIM7_IRQn, 1);
     NVIC_EnableIRQ(TIM7_IRQn);
     //	SPI2
-    NVIC_SetPriority(SPI2_IRQn, 1);
+    NVIC_SetPriority(SPI2_IRQn, 5);
     NVIC_EnableIRQ(SPI2_IRQn);
     // USART2
-    NVIC_SetPriority(USART2_IRQn,1);
+    NVIC_SetPriority(USART2_IRQn,12);
     NVIC_EnableIRQ(USART2_IRQn);
     //	REMOTE
     NVIC_SetPriority(EXTI15_10_IRQn, NEC_PRIOR);
@@ -207,6 +207,7 @@ main(int argc, char* argv[])
 			  else
 				  // 	...	Else set the end of file flag
 				  wav_eof = true;
+			  state = STATE_WAIT;
 			  break;
 		  }
 
