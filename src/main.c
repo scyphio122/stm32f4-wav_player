@@ -56,6 +56,8 @@ fifo_t  			remote_command_fifo;
 
 void NVIC_Enable_Interrupts()
 {
+	// Configure the core to be waked up by all interrupts
+	SCB->SCR |= SCB_SCR_SEVONPEND_Msk;
 	//	Tim7
     NVIC_SetPriority(TIM7_IRQn, 1);
     NVIC_EnableIRQ(TIM7_IRQn);
@@ -74,11 +76,12 @@ void NVIC_Enable_Interrupts()
 int
 main(int argc, char* argv[])
 {
-	volatile FATFS 		fatfs = {0};
-	volatile FRESULT 	result;
+	FATFS 				fatfs = {0};
+	FRESULT 			result;
 	uint8_t 			fifo_command = 0;
 	uint8_t				file_index = 0;
-
+    TCHAR				disk[] = "0";		/*< SD card disk number */
+    UINT 				byte_number;
 
 
     ResetRCC();
@@ -96,58 +99,70 @@ main(int argc, char* argv[])
     RCC->APB1ENR |= RCC_APB1ENR_TIM7EN | RCC_APB1ENR_SPI2EN | RCC_APB1ENR_USART2EN | RCC_APB1ENR_DACEN;
 
 
-    /*< Configure board's leds to signal states */
+    /** Configure board's leds to signal states */
     GPIO_OutputConfigure(GPIOD, PIN_12 | PIN_13 | PIN_14 | PIN_15, gpio_otyper_push_pull, gpio_speed_high, gpio_pupd_pull_down);
-    /*< Configure NVIC Interrupt controller */
+    /** Configure NVIC Interrupt controller */
     //  Set two bits (out of four) as the main priority. The rest bits are used for preemptive priorities
     NVIC_SetPriorityGrouping(NVIC_PriorityGroup_2);
     NVIC_Enable_Interrupts();
 
-    /*< Configure USART2 module to create program log */
+    /** Configure USART2 module to create program log */
     UART_Config(USART2, USART_CR1_UE | USART_CR1_TE, 19200,false);
     GPIO_AlternateFunctionPrepare(GPIOD, PIN_5, gpio_otyper_push_pull, gpio_speed_medium, gpio_pupd_pull_up);
     GPIO_AlternateFunctionSet(GPIOD,PIN_5, AF7);
     Log_Uart("##### LOG START #####\n\r");
 
-    /*<	MCO2 Pin configuration to watch the CPU Clock signal with an oscilloscope*/
+    /**	MCO2 Pin configuration to watch the CPU Clock signal with an oscilloscope*/
     Log_Uart("Clock output pin configuration in progress...\n\r");
     RCC->CFGR |= RCC_CFGR_MCO2PRE_2 | RCC_CFGR_MCO2PRE_1;
     RCC->CFGR &= ~RCC_CFGR_MCO2;
     GPIO_AlternateFunctionPrepare(GPIOC, PIN_9, gpio_otyper_push_pull, gpio_speed_fast, gpio_pupd_no_pull);
     GPIO_AlternateFunctionSet(GPIOC,PIN_9, AF0);
 
-    /*<	SysTick configuration */
+    /**	SysTick configuration **/
     Log_Uart("SysTick configuration in progress...\n\r");
     SysTick_Config(SYSTICK_CLK_DIVIDER);	//	Configure SysTick to make a tick every 1 us
     SysTick_CLKSourceConfig(SysTick_CLKSource_HCLK);
 
 
-    /*< PWM signal configuration */
+    /** PWM signal configuration **/
     Log_Uart("PWM generation module configuration in progress...\n\r");
     GPIO_AlternateFunctionPrepare(GPIOA, PIN_8, gpio_otyper_push_pull, gpio_speed_fast, gpio_pupd_pull_down);
     GPIO_AlternateFunctionSet(GPIOA, PIN_8, AF1);	//	Pin for PWM signal
     TIM_PWMConfigure(TIM1, 168, 5000, 4000, TIM_Channel_1);
     TIM_Start(TIM1);
-    /*< HD44780 display configuration */
+    /** HD44780 display configuration **/
     LCD_Config();
 
 
-    /*< Remote controller receiver initialization */
+    /** Remote controller receiver initialization **/
     Log_Uart("IR remote controller configuration in progress...\n\r");
     NEC_Remote_Init();
     TIM_Start(TIM6);
 
-    /*< SPI Module configuration. It is used to communicate with the SD card */
+    /** SPI Module configuration. It is used to communicate with the SD card **/
     Log_Uart("SPI module configuration in progress...\n\r");
-    SPI_Master_Init(SPI2, SPI_FREQ_PCLK_DIV_256, SPI_CPOL0_CPHA0, SPI_BIT_ORDER_MSB_FIRST, true);
 
-    /*< DAC configuration */
+	/**	Configure the gpio pins in alternate function mode (for SPI2)	*/
+	//	Configure MISO, MOSI and NSS(Chip Select) Lines with pull up
+	GPIO_AlternateFunctionPrepare(SPI2_PORT, SPI2_MOSI | SPI2_MISO, gpio_otyper_push_pull, gpio_speed_fast, gpio_pupd_pull_up);
+	//	Configure SCK as no pull line
+	GPIO_AlternateFunctionPrepare(SPI2_PORT, SPI2_SCK, gpio_otyper_push_pull, gpio_speed_fast, gpio_pupd_pull_down);
+	GPIO_AlternateFunctionPrepare(SPI2_PORT, SPI2_NSS, gpio_otyper_push_pull, gpio_speed_fast, gpio_pupd_pull_up);
+	GPIO_AlternateFunctionSet(SPI2_PORT, SPI2_NSS, AF5);
+	GPIO_AlternateFunctionSet(SPI2_PORT, SPI2_MISO, AF5);
+	GPIO_AlternateFunctionSet(SPI2_PORT, SPI2_MOSI, AF5);
+	GPIO_AlternateFunctionSet(SPI2_PORT, SPI2_SCK, AF5);
+    SPI_Master_Init(SPI2, SPI_FREQ_PCLK_DIV_256, SPI_CPOL0_CPHA0, SPI_BIT_ORDER_MSB_FIRST, true);
+    /*<						**/
+
+    /** DAC configuration **/
     DAC_Init(dac_dual_channel_simultanous, dac_trigger_tim7, true);
 
-    /*< Timer 7 used to trigger the DAC config */
+    /** Timer 7 used to trigger the DAC config */
     TIM_Basic_Continuous_Counting(TIM7, 12);
 
-    /*< Remote Controller command fifo configuration */
+    /** Remote Controller command fifo configuration */
     Log_Uart("FIFO configuration in progress...\n\r");
     Fifo_Init(&remote_command_fifo, remote_command_queue, sizeof(remote_command_queue));
 
@@ -157,18 +172,9 @@ main(int argc, char* argv[])
     Log_Uart("Configuration OK!\n\r");
 
 
-
-
-    TCHAR disk[] = "0";
-    UINT byte_number;
     result = f_mount(&fatfs, disk, 1);
 
-    uint16_t bytes;
-   /* result = SD_Find_File_Name_Containing("/", "*.wav");
-    result = SD_Get_File_List("/");
-    result = f_open(&sd_current_file, &sd_files_list[3], FA_READ);
-    result = Wav_Get_File_Header(&sd_current_file);
-*/
+
     //	Initially, get the files list
     state = STATE_GET_FILES_LIST;
 
@@ -176,9 +182,6 @@ main(int argc, char* argv[])
   {
 	  switch(state)
 	  {
-		 /* case STATE_WAIT:
-			  break;*/
-
 		  case	STATE_GET_FILES_LIST:
 		  {
 			  result = SD_Find_File_Name_Containing("/", "*.wav");
@@ -204,7 +207,7 @@ main(int argc, char* argv[])
 			  //	If we didn't get to the end of file yet...
 			  if(!f_eof(&sd_current_file))
 				  //	... Then read next sample chunk
-				  f_read(&sd_current_file, empty_data_buf_ptr, 512, &read_data_byte_counter);
+				  f_read(&sd_current_file, empty_data_buf_ptr, sizeof(sd_data_buffer), &read_data_byte_counter);
 			  else
 				  // 	...	Else set the end of file flag
 				  wav_eof = true;
@@ -259,16 +262,23 @@ main(int argc, char* argv[])
 							  //	Get the chosen files header
 							  WAV_Get_File_Header(&sd_current_file);
 							  //	Prepare the triggering timer frequency
-							 // WAV_Set_Trigger_Frequency(TIM7);
 							  TIM_Set_Timer_Max_Count(TIM7, (uint16_t)(TIM7_FREQ/current_wave_header.byte_field.sample_rate));
-							  //	Get the rest audio file info
-							  //f_read(&sd_current_file, sd_data_buffer, current_wave_header.byte_field.subchunk_2_size, &read_data_byte_counter);
-							  //	Get the first portion of data
-
+							empty_data_buf_ptr = sd_data_buffer;
+							//	Fulfill the data buffers
+							f_read(&sd_current_file, sd_data_buffer, sizeof(sd_data_buffer), &read_data_byte_counter);
+							f_read(&sd_current_file, sd_data_buffer_additional, sizeof(sd_data_buffer_additional), &read_data_byte_counter);
 							  //	Set the wav_file_chosen flag
 							  wav_file_chosen = true;
 							  //	Clear the wav_eof flag
 							  wav_eof  = false;
+
+						  }
+						  else	//	Close the file
+						  {
+							  wav_file_chosen = false;
+							  wav_file_playing = false;
+							  TIM_Stop(TIM7);
+							  f_close(&sd_current_file);
 
 						  }
 						  break;
@@ -280,10 +290,7 @@ main(int argc, char* argv[])
 							//	Clear the timer's counter
 							TIM_Clear(TIM7);
 							TIM7->DIER |= TIM_DIER_UIE;
-							empty_data_buf_ptr = sd_data_buffer;
-							  f_read(&sd_current_file, sd_data_buffer, sizeof(sd_data_buffer), &read_data_byte_counter);
 
-							  f_read(&sd_current_file, sd_data_buffer_additional, sizeof(sd_data_buffer_additional), &read_data_byte_counter);
 							//	Start the DAC triggering timer
 							TIM_Start(TIM7);
 							//	Set the wav_file_playing_flag
@@ -293,7 +300,6 @@ main(int argc, char* argv[])
 						 {
 							 //	Stop the DAC triggering timer
 							 TIM_Stop(TIM7);
-
 							 //	Clear the wav_file_playing_ flag
 							 wav_file_playing = false;
 						 }
