@@ -8,6 +8,7 @@
 #include "ff.h"
 #include <stdbool.h>
 #include "RCC.h"
+#include "sd_card_reader.h"
 
 wav_file_header_u	current_wave_header;
 bool				wav_file_playing;
@@ -39,13 +40,36 @@ FRESULT WAV_Get_File_Header(FIL* file)
 	}
 
 
-	//	Read the .wav file header
-	ret_val = f_read(file, current_wave_header.array, sizeof(current_wave_header.array), &actually_read_data_size);
+	//	Read the .wav file header	sizeof(current_wave_header.array)
+	ret_val = f_read(file, current_wave_header.array, 44, &actually_read_data_size);
 	if(ret_val != FR_OK)
 	{
 		Log_Uart("Blad odczytu pliku\n\r");
 		while(1);
 	}
+	uint32_t chunk_id = 0;
+	memcpy(&chunk_id, &current_wave_header.array[36], sizeof(uint32_t));
+	if(chunk_id != 0x61746164)
+	{
+		uint32_t chunk_size = current_wave_header.byte_field.subchunk_2_size;
+		uint8_t additional_index = 0;
+		do
+		{
+			f_read(&sd_current_file, &sd_data_buffer, chunk_size + 8, &actually_read_data_size);
+			if(sd_data_buffer[chunk_size + 1] == 0)
+			{
+				additional_index = 1;
+			}
+			else
+			{
+				additional_index = 0;
+			}
+			memcpy(&chunk_id, &sd_data_buffer[chunk_size + additional_index], sizeof(uint32_t));
+			memcpy(&chunk_size, &sd_data_buffer[chunk_size + additional_index + 4], sizeof(uint32_t));
+		}while(chunk_id != 0x61746164);
+	}
+
+
 }
 /*
 FRESULT WAV_Set_Trigger_Frequency(TIM_TypeDef* TIM)
