@@ -102,7 +102,8 @@ main(int argc, char* argv[])
     RCC->APB2ENR |= RCC_APB2ENR_TIM1EN | RCC_APB2ENR_SPI1EN;
     RCC->APB1ENR |= RCC_APB1ENR_TIM2EN | RCC_APB1ENR_TIM6EN | RCC_APB1ENR_TIM7EN | RCC_APB1ENR_SPI2EN | RCC_APB1ENR_USART2EN | RCC_APB1ENR_DACEN;
 
-
+    /** DAC configuration **/
+    DAC_Init(dac_dual_channel_simultanous, dac_trigger_tim7, true);
     /** Configure board's leds to signal states */
     GPIO_OutputConfigure(GPIOD, PIN_12 | PIN_13 | PIN_14 | PIN_15, gpio_otyper_push_pull, gpio_speed_high, gpio_pupd_pull_down);
     /** Configure NVIC Interrupt controller */
@@ -180,12 +181,12 @@ main(int argc, char* argv[])
     SPI_Master_Init(SPI2, SPI_FREQ_PCLK_DIV_2, SPI_CPOL0_CPHA0, SPI_BIT_ORDER_MSB_FIRST, spi_hardware_nss);
     /*<						**/
 
-    /** DAC configuration **/
-    DAC_Init(dac_dual_channel_simultanous, dac_trigger_tim7, true);
+
 
     /** Timer 7 used to trigger the DAC config */
     TIM_Continuous_Counting(TIM7, 12, TIM7_PRESCALER);
-
+    // Enable the update event as a trigger
+    TIM7->CR2 |= TIM_CR2_MMS_1;
     /** Remote Controller command fifo configuration */
     Log_Uart("FIFO configuration in progress...\n\r");
     Fifo_Init(&remote_command_fifo, remote_command_queue, sizeof(remote_command_queue));
@@ -203,7 +204,7 @@ main(int argc, char* argv[])
     //	Initially, get the files list
     state = STATE_GET_FILES_LIST;
 
-    //TIM_Start(TIM2);
+    TIM_Start(TIM2);
   while(1)
   {
 	  switch(state)
@@ -236,8 +237,14 @@ main(int argc, char* argv[])
 				  //	... Then read next sample chunk
 				  f_read(&sd_current_file, empty_data_buf_ptr, sizeof(sd_data_buffer), &read_data_byte_counter);
 			  else
+			  {
+				  //	Clear the putty terminal
+				  Log_Clear_Terminal();
+				  //	List again all available songs
+				  WAV_List_Songs(file_index);
 				  // 	...	Else set the end of file flag
 				  wav_eof = true;
+			  }
 			  state = STATE_EXECUTE_USER_REQUESTS;
 			  break;
 		  }

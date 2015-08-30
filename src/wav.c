@@ -15,7 +15,7 @@ wav_file_header_u	wav_current_file_header;
 uint16_t			wav_file_header_size;
 bool				wav_file_playing;
 bool				wav_file_chosen;
-bool				wav_eof;
+volatile bool		wav_eof;
 static uint32_t		wav_song_time_duration;
 uint8_t				wav_song_time_duration_string[6];
 static uint32_t		wav_current_song_time;
@@ -120,8 +120,8 @@ uint32_t WAV_Calculate_Length_To_Secs(uint32_t byte_length)
 
 void WAV_Convert_Seconds_To_String(uint32_t time_s, uint8_t* buffer)
 {
-	uint8_t minutes = wav_song_time_duration / 60;
-	uint8_t seconds = wav_song_time_duration % 60;
+	uint8_t minutes = time_s / 60;
+	uint8_t seconds = time_s % 60;
 	uint8_t index_counter = 0;
 	index_counter = sprintf(buffer, "%d", minutes);
 	buffer[index_counter] = ':';

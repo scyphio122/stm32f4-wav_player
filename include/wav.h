@@ -35,7 +35,7 @@ extern wav_file_header_u	wav_current_file_header;
 extern uint16_t				wav_file_header_size;
 extern bool					wav_file_playing;
 extern bool					wav_file_chosen;
-extern bool					wav_eof;
+extern volatile bool		wav_eof;
 extern uint8_t				wav_song_time_duration_string[6];
 extern uint8_t				wav_current_song_time_string[6];
 extern uint8_t				file_index;
