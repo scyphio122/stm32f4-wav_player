@@ -29,6 +29,7 @@ CPP_DEPS :=
 SUBDIRS := \
 src \
 stm32f4_mylib/FatFS \
+stm32f4_mylib/SSD1306 \
 stm32f4_mylib/src \
 system/src/cmsis \
 system/src/cortexm \

@@ -9,11 +9,46 @@
 #include <stdbool.h>
 #include "RCC.h"
 #include "sd_card_reader.h"
+#include "USART.h"
 
-wav_file_header_u	current_wave_header;
+wav_file_header_u	wav_current_file_header;
+uint16_t			wav_file_header_size;
 bool				wav_file_playing;
 bool				wav_file_chosen;
 bool				wav_eof;
+static uint32_t		wav_song_time_duration;
+uint8_t				wav_song_time_duration_string[6];
+static uint32_t		wav_current_song_time;
+uint8_t				wav_current_song_time_string[6];
+uint8_t				file_index = 0;
+
+
+/**
+ * \brief This function lists all the available '.wav' files on the SD card and sends the list via UART
+ * \param selected_song_index - the index of the song currently selected, used to set an 'X' sign next to its name
+ */
+void	WAV_List_Songs(uint16_t selected_song_index)
+{
+	uint8_t buf[15];
+	Log_Clear_Terminal();
+	Log_Uart("Wybierz plik:\n\n");
+
+	for(uint16_t i=0; i< FILE_ARRAY_SIZE; i++)
+	{
+		if(sd_files_list[i][0] == 0)
+			break;
+		memcpy(buf+3, sd_files_list[i], 13);
+		buf[0] = '[';
+		if(i == selected_song_index)
+			buf[1] = 'X';
+		else
+			buf[1] = ' ';
+		buf[2] = ']';
+
+		Log_Uart(buf);
+		Log_Uart("\n");
+	}
+}
 /**
  * \brief This function loads the header of the .wav file. The file has to be opened
  *
@@ -31,7 +66,7 @@ FRESULT WAV_Get_File_Header(FIL* file)
 		while(1);
 	}
 
-	//	Set the pointer to tje beginning of the file
+	//	Set the pointer to the beginning of the file
 	ret_val = f_lseek(file, 0);
 	if(ret_val != FR_OK)
 	{
@@ -41,17 +76,19 @@ FRESULT WAV_Get_File_Header(FIL* file)
 
 
 	//	Read the .wav file header	sizeof(current_wave_header.array)
-	ret_val = f_read(file, current_wave_header.array, 44, &actually_read_data_size);
+	ret_val = f_read(file, wav_current_file_header.array, 44, &actually_read_data_size);
 	if(ret_val != FR_OK)
 	{
 		Log_Uart("Blad odczytu pliku\n\r");
 		while(1);
 	}
 	uint32_t chunk_id = 0;
-	memcpy(&chunk_id, &current_wave_header.array[36], sizeof(uint32_t));
+	memcpy(&chunk_id, &wav_current_file_header.array[36], sizeof(uint32_t));
+	uint32_t chunk_size = wav_current_file_header.byte_field.subchunk_2_size;
+
 	if(chunk_id != 0x61746164)
 	{
-		uint32_t chunk_size = current_wave_header.byte_field.subchunk_2_size;
+
 		uint8_t additional_index = 0;
 		do
 		{
@@ -68,21 +105,27 @@ FRESULT WAV_Get_File_Header(FIL* file)
 			memcpy(&chunk_size, &sd_data_buffer[chunk_size + additional_index + 4], sizeof(uint32_t));
 		}while(chunk_id != 0x61746164);
 	}
+	//	Get the entire song duration time in seconds;
+	wav_song_time_duration = WAV_Calculate_Length_To_Secs(chunk_size);
+	//	Set the size of the wav file header size to help reolve the current time position in song
+	wav_file_header_size = sd_current_file.fptr;
 
-
+	WAV_Convert_Seconds_To_String(wav_song_time_duration, wav_song_time_duration_string);
 }
-/*
-FRESULT WAV_Set_Trigger_Frequency(TIM_TypeDef* TIM)
+
+uint32_t WAV_Calculate_Length_To_Secs(uint32_t byte_length)
 {
-	uint32_t new_prescaler = 0;
-
-	if((TIM == TIM2) || (TIM == TIM3) || ( TIM == TIM4) || (TIM == TIM5) || (TIM == TIM12) || (TIM == TIM13) || (TIM == TIM14) || (TIM == TIM6)|| (TIM == TIM7))
-		new_prescaler = ((APB1*1000000*2)/current_wave_header.byte_field.sample_rate);
-	else
-		new_prescaler = ((APB2*1000000*2)/current_wave_header.byte_field.sample_rate);
-
-	TIM_Change_Frequency(TIM, new_prescaler + 1, false);
+	return byte_length /wav_current_file_header.byte_field.byte_rate;
 }
-*/
+
+void WAV_Convert_Seconds_To_String(uint32_t time_s, uint8_t* buffer)
+{
+	uint8_t minutes = wav_song_time_duration / 60;
+	uint8_t seconds = wav_song_time_duration % 60;
+	uint8_t index_counter = 0;
+	index_counter = sprintf(buffer, "%d", minutes);
+	buffer[index_counter] = ':';
+	sprintf(buffer+index_counter+1, "%d", seconds);
+}
 
 

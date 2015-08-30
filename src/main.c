@@ -24,6 +24,7 @@
 #include "ff.h"
 #include "wav.h"
 #include "dac.h"
+#include "SSD1306.h"
 
 // ----------------------------------------------------------------------------
 //
@@ -61,11 +62,15 @@ void NVIC_Enable_Interrupts()
 	//	Tim7
     NVIC_SetPriority(TIM7_IRQn, 1);
     NVIC_EnableIRQ(TIM7_IRQn);
+	//	Tim2
+    NVIC_SetPriority(TIM2_IRQn, 15);
+    NVIC_EnableIRQ(TIM2_IRQn);
+
     //	SPI2
     NVIC_SetPriority(SPI2_IRQn, 5);
     NVIC_EnableIRQ(SPI2_IRQn);
     // USART2
-    NVIC_SetPriority(USART2_IRQn,12);
+    NVIC_SetPriority(USART2_IRQn,9);
     NVIC_EnableIRQ(USART2_IRQn);
     //	REMOTE
     NVIC_SetPriority(EXTI15_10_IRQn, NEC_PRIOR);
@@ -79,7 +84,6 @@ main(int argc, char* argv[])
 	FATFS 				fatfs = {0};
 	FRESULT 			result;
 	uint8_t 			fifo_command = 0;
-	uint8_t				file_index = 0;
     TCHAR				disk[] = "0";		/*< SD card disk number */
     UINT 				byte_number;
 
@@ -90,13 +94,13 @@ main(int argc, char* argv[])
     //  Enable clocks for the peripherals
     /*
      * 	GPIOA	-	NEC_CONTROLLER, TIM1 PWM, DAC
-     * 	GPIOB	- 	SPI2
-     * 	GPIOC	-	HD44780 Led Display
+     * 	GPIOB	- 	SPI2, SPI1
+     * 	GPIOC	-
      * 	GPIOD	-	LED diodes, USART2(Log)
      */
     RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN | RCC_AHB1ENR_GPIOBEN |  RCC_AHB1ENR_GPIOCEN | RCC_AHB1ENR_GPIODEN;
-    RCC->APB2ENR |= RCC_APB2ENR_TIM1EN;
-    RCC->APB1ENR |= RCC_APB1ENR_TIM7EN | RCC_APB1ENR_SPI2EN | RCC_APB1ENR_USART2EN | RCC_APB1ENR_DACEN;
+    RCC->APB2ENR |= RCC_APB2ENR_TIM1EN | RCC_APB2ENR_SPI1EN;
+    RCC->APB1ENR |= RCC_APB1ENR_TIM2EN | RCC_APB1ENR_TIM6EN | RCC_APB1ENR_TIM7EN | RCC_APB1ENR_SPI2EN | RCC_APB1ENR_USART2EN | RCC_APB1ENR_DACEN;
 
 
     /** Configure board's leds to signal states */
@@ -107,9 +111,11 @@ main(int argc, char* argv[])
     NVIC_Enable_Interrupts();
 
     /** Configure USART2 module to create program log */
-    UART_Config(USART2, USART_CR1_UE | USART_CR1_TE, 19200,false);
+    UART_Config(USART2, USART_CR1_UE | USART_CR1_TE, 38400,false);
     GPIO_AlternateFunctionPrepare(GPIOD, PIN_5, gpio_otyper_push_pull, gpio_speed_medium, gpio_pupd_pull_up);
     GPIO_AlternateFunctionSet(GPIOD,PIN_5, AF7);
+
+    Log_Clear_Terminal();
     Log_Uart("##### LOG START #####\n\r");
 
     /**	MCO2 Pin configuration to watch the CPU Clock signal with an oscilloscope*/
@@ -131,53 +137,73 @@ main(int argc, char* argv[])
     GPIO_AlternateFunctionSet(GPIOA, PIN_8, AF1);	//	Pin for PWM signal
     TIM_PWMConfigure(TIM1, 168, 5000, 4000, TIM_Channel_1);
     TIM_Start(TIM1);
-    /** HD44780 display configuration **/
-    LCD_Config();
 
+	/**	Configure the gpio pins in alternate function mode (for SPI1 - OLED display)	*/
+  /*  GPIO_OutputConfigure(GPIOB, PIN_0 | PIN_1 | PIN_2,gpio_otyper_push_pull, gpio_speed_high, gpio_pupd_pull_up);
+	//	Configure MISO, MOSI Lines with pull up
+	GPIO_AlternateFunctionPrepare(SPI1_PORT, SPI1_MOSI | SPI1_MISO, gpio_otyper_push_pull, gpio_speed_fast, gpio_pupd_pull_up);
+	//	Configure SCK as pull down line
+	GPIO_AlternateFunctionPrepare(SPI1_PORT, SPI1_SCK, gpio_otyper_push_pull, gpio_speed_fast, gpio_pupd_pull_up);
+	GPIO_AlternateFunctionPrepare(GPIOA, SPI1_NSS, gpio_otyper_push_pull, gpio_speed_fast, gpio_pupd_pull_up);
+	GPIO_AlternateFunctionSet(SPI1_PORT, SPI1_MISO, AF5);
+	GPIO_AlternateFunctionSet(SPI1_PORT, SPI1_MOSI, AF5);
+	GPIO_AlternateFunctionSet(SPI1_PORT, SPI1_SCK, AF5);
+	GPIO_AlternateFunctionSet(GPIOA, SPI1_NSS, AF5);
+    SPI_Master_Init(SPI1, SPI_FREQ_PCLK_DIV_256, SPI_CR1_CPOL | SPI_CR1_CPHA, SPI_BIT_ORDER_MSB_FIRST, spi_hardware_nss); // 84MHz / 2 = 42MHz
+    SPI_CRC_Calc_Enable(SPI1, 7);
+    ssd1306_init();
+  */
 
-    /** Remote controller receiver initialization **/
+    /** TIM2 for Console refreshing initialization **/
+    TIM_Continuous_Counting(TIM2, TIM2_US_TO_TICKS(1000000), TIM2_PRESCALER);
+    TIM_Enable_Update_Interrupt(TIM2);
+
+    /** Remote controller receiver i;nitialization **/
     Log_Uart("IR remote controller configuration in progress...\n\r");
     NEC_Remote_Init();
-    TIM_Start(TIM6);
+
+    TIM_Start(TIM6);			/*< Continuously ticking timer, used in NEC IR remote */
 
     /** SPI Module configuration. It is used to communicate with the SD card **/
     Log_Uart("SPI module configuration in progress...\n\r");
 
 	/**	Configure the gpio pins in alternate function mode (for SPI2)	*/
-	//	Configure MISO, MOSI and NSS(Chip Select) Lines with pull up
+	//	Configure MISO, MOSI Lines with pull up
 	GPIO_AlternateFunctionPrepare(SPI2_PORT, SPI2_MOSI | SPI2_MISO, gpio_otyper_push_pull, gpio_speed_fast, gpio_pupd_pull_up);
-	//	Configure SCK as no pull line
+	//	Configure SCK as pull down line
 	GPIO_AlternateFunctionPrepare(SPI2_PORT, SPI2_SCK, gpio_otyper_push_pull, gpio_speed_fast, gpio_pupd_pull_down);
 	GPIO_AlternateFunctionPrepare(SPI2_PORT, SPI2_NSS, gpio_otyper_push_pull, gpio_speed_fast, gpio_pupd_pull_up);
 	GPIO_AlternateFunctionSet(SPI2_PORT, SPI2_NSS, AF5);
 	GPIO_AlternateFunctionSet(SPI2_PORT, SPI2_MISO, AF5);
 	GPIO_AlternateFunctionSet(SPI2_PORT, SPI2_MOSI, AF5);
 	GPIO_AlternateFunctionSet(SPI2_PORT, SPI2_SCK, AF5);
-    SPI_Master_Init(SPI2, SPI_FREQ_PCLK_DIV_256, SPI_CPOL0_CPHA0, SPI_BIT_ORDER_MSB_FIRST, true);
+    SPI_Master_Init(SPI2, SPI_FREQ_PCLK_DIV_2, SPI_CPOL0_CPHA0, SPI_BIT_ORDER_MSB_FIRST, spi_hardware_nss);
     /*<						**/
 
     /** DAC configuration **/
     DAC_Init(dac_dual_channel_simultanous, dac_trigger_tim7, true);
 
     /** Timer 7 used to trigger the DAC config */
-    TIM_Basic_Continuous_Counting(TIM7, 12);
+    TIM_Continuous_Counting(TIM7, 12, TIM7_PRESCALER);
 
     /** Remote Controller command fifo configuration */
     Log_Uart("FIFO configuration in progress...\n\r");
     Fifo_Init(&remote_command_fifo, remote_command_queue, sizeof(remote_command_queue));
 
 
-    TIM6->CR1 |= TIM_CR1_CEN;	/*< Continuously ticking timer, used in NEC IR remote */
-
+    Log_Uart("---------------------\n\r");
     Log_Uart("Configuration OK!\n\r");
 
 
     result = f_mount(&fatfs, disk, 1);
-
+   	//	Wait 2 seconds to watch the result of configuration
+    SysTick_Delay(SYSTICK_US_TO_TICKS(2000000));
+    Log_Clear_Terminal();
 
     //	Initially, get the files list
     state = STATE_GET_FILES_LIST;
 
+    //TIM_Start(TIM2);
   while(1)
   {
 	  switch(state)
@@ -196,7 +222,8 @@ main(int argc, char* argv[])
 			  }
 			  else
 			  {
-				  LCD_WriteText(sd_files_list[0]);
+				  //LCD_WriteText(sd_files_list[0]);
+				  WAV_List_Songs(0);
 			  }
 			  state = STATE_EXECUTE_USER_REQUESTS;
 			  break;
@@ -232,7 +259,8 @@ main(int argc, char* argv[])
 							  if(file_index < sd_number_of_files_in_dir-1)
 								  file_index++;
 
-							  LCD_WriteText(sd_files_list[file_index]);
+							 // LCD_WriteText(sd_files_list[file_index]);
+							  WAV_List_Songs(file_index);
 						  }
 						  break;
 					  }
@@ -244,7 +272,8 @@ main(int argc, char* argv[])
 							  wav_file_chosen = false;
 							  if(file_index > 0)
 								  file_index--;
-							  LCD_WriteText(sd_files_list[file_index]);
+							  //LCD_WriteText(sd_files_list[file_index]);
+							  WAV_List_Songs(file_index);
 						  }
 						  break;
 					  }
@@ -263,7 +292,7 @@ main(int argc, char* argv[])
 							  WAV_Get_File_Header(&sd_current_file);
 
 							  //	Prepare the triggering timer frequency
-							  TIM_Set_Timer_Max_Count(TIM7, (uint16_t)(TIM7_FREQ/current_wave_header.byte_field.sample_rate));
+							  TIM_Set_Timer_Max_Count(TIM7, (uint16_t)(TIM7_FREQ/wav_current_file_header.byte_field.sample_rate));
 							empty_data_buf_ptr = sd_data_buffer;
 							// 	Get the rest info current_wave_header.byte_field.subchunk_2_size + 14,
 							//f_read(&sd_current_file, sd_data_buffer, current_wave_header.byte_field.subchunk_2_size+8, &read_data_byte_counter);
@@ -292,6 +321,8 @@ main(int argc, char* argv[])
 					  {
 						 if(!wav_file_playing && wav_file_chosen)
 						 {
+							//	Set the green led
+							GPIOD->ODR |= GPIO_ODR_ODR_12;
 							//	Clear the timer's counter
 							TIM_Clear(TIM7);
 							TIM7->DIER |= TIM_DIER_UIE;
@@ -303,6 +334,8 @@ main(int argc, char* argv[])
 						 }
 						 else
 						 {
+							 //	Clear the green led
+							 GPIOD->ODR &= ~GPIO_ODR_ODR_12;
 							 //	Stop the DAC triggering timer
 							 TIM_Stop(TIM7);
 							 //	Clear the wav_file_playing_ flag

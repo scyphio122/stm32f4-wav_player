@@ -31,19 +31,25 @@ typedef union
 
 }wav_file_header_u;
 
-extern wav_file_header_u	current_wave_header;
-extern bool				wav_file_playing;
-extern bool				wav_file_chosen;
-extern bool				wav_eof;
+extern wav_file_header_u	wav_current_file_header;
+extern uint16_t				wav_file_header_size;
+extern bool					wav_file_playing;
+extern bool					wav_file_chosen;
+extern bool					wav_eof;
+extern uint8_t				wav_song_time_duration_string[6];
+extern uint8_t				wav_current_song_time_string[6];
+extern uint8_t				file_index;
+
 
 
 /**
  * NOTE: Wave file samples are signed values!!!
  */
 
-FRESULT WAV_Get_File_Header(FIL* file);
-
-
+void		WAV_List_Songs(uint16_t selected_song_index);
+FRESULT 	WAV_Get_File_Header(FIL* file);
+uint32_t	WAV_Calculate_Length_To_Secs(uint32_t byte_length);
+void 		WAV_Convert_Seconds_To_String(uint32_t time_s, uint8_t* buffer);
 
 
 
