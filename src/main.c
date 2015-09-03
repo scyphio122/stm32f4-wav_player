@@ -301,11 +301,6 @@ main(int argc, char* argv[])
 							  //	Prepare the triggering timer frequency
 							  TIM_Set_Timer_Max_Count(TIM7, (uint16_t)(TIM7_FREQ/wav_current_file_header.byte_field.sample_rate));
 							empty_data_buf_ptr = sd_data_buffer;
-							// 	Get the rest info current_wave_header.byte_field.subchunk_2_size + 14,
-							//f_read(&sd_current_file, sd_data_buffer, current_wave_header.byte_field.subchunk_2_size+8, &read_data_byte_counter);
-							//	Fulfill the data buffers
-							//f_read(&sd_current_file, sd_data_buffer, 512, &read_data_byte_counter);
-							//f_lseek(&sd_current_file, )
 							f_read(&sd_current_file, sd_data_buffer, sizeof(sd_data_buffer), &read_data_byte_counter);
 							f_read(&sd_current_file, sd_data_buffer_additional, sizeof(sd_data_buffer_additional), &read_data_byte_counter);
 							  //	Set the wav_file_chosen flag
